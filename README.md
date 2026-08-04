@@ -2,7 +2,7 @@
 
 Production-focused React platform and infrastructure build featuring automated container delivery, Kubernetes deployment, and cloud provisioning on DigitalOcean.
 
-## Resume Summary
+## Summary
 
 Designed and implemented a full deployment pipeline for a Vite + React application with a strong DevOps focus. Built an end-to-end GitHub Actions workflow that handles container build, private registry publishing, Kubernetes rollout orchestration, and deployment diagnostics. Provisioned DigitalOcean infrastructure with Terraform and delivered a cluster-ready application stack including ingress and TLS automation.
 
