@@ -1,121 +1,117 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
+import profileImage from './assets/profile.jpg'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const techStack = [
+    'React',
+    'TypeScript',
+    'JavaScript',
+    'Node.js',
+    'Express',
+    'PostgreSQL',
+    'Terraform',
+    'Kubernetes',
+    'GitHub Actions',
+    'Playwright',
+  ]
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="page-shell">
+      <main className="content" aria-label="Portfolio">
+        <section className="hero-section">
+          <img
+            className="profile-photo"
+            src={profileImage}
+            alt="TRP profile"
+            loading="lazy"
+          />
+          <div>
+            <p className="eyebrow">Salt Lake City, Utah</p>
+            <h1>Hi, I&apos;m TRP</h1>
+            <p className="lead">
+              Full-stack web developer engineering production software in banking.
+              I focus on reliable delivery, modern cloud infrastructure, and
+              practical automation.
+            </p>
+          </div>
+        </section>
 
-      <div className="ticks"></div>
+        <section className="panel">
+          <h2>Tech Stack</h2>
+          <ul className="chip-grid" aria-label="Tech stack list">
+            {techStack.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
+        <section className="panel">
+          <h2>What I Do</h2>
+          <ul className="summary-list">
             <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
+              Build production frontend and backend systems with React,
+              TypeScript, Express, and PostgreSQL.
             </li>
             <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
+              Ship infrastructure as code using Terraform with automated
+              deployment workflows.
+            </li>
+            <li>
+              Improve release confidence with CI/CD hardening and end-to-end
+              test automation.
             </li>
           </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <section className="two-column">
+          <article className="panel compact">
+            <h2>Currently Learning</h2>
+            <p>
+              Going deeper on Kubernetes operations, Terraform patterns, and AI
+              tooling for product engineering workflows.
+            </p>
+          </article>
+          <article className="panel compact">
+            <h2>Off the Clock</h2>
+            <p>
+              Hiking, fishing, and getting outside whenever possible. Building
+              software is the work, the mountains are the reset.
+            </p>
+          </article>
+        </section>
+
+        <section className="panel">
+          <h2>Reach Me</h2>
+          <div className="link-row" role="list" aria-label="Contact links">
+            <a role="listitem" href="https://trp.dev" target="_blank" rel="noreferrer">
+              tylerpedersen.com
+            </a>
+            <a role="listitem" href="mailto:t@trp.dev">
+              tyler@tylerpedersen.com
+            </a>
+            <a
+              role="listitem"
+              href="https://github.com/trpthedev"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+            <a
+              role="listitem"
+              href="https://www.linkedin.com/in/traypedersen/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              LinkedIn
+            </a>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <p>© 2026 TRP · Salt Lake City, Utah</p>
+      </footer>
+    </div>
   )
 }
 
