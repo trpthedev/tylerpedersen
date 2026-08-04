@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tylerpedersen-web
+  namespace: web
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - tylerpedersen.com
+        - www.tylerpedersen.com
+      secretName: tylerpedersen-com-tls
+  rules:
+    - host: tylerpedersen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tylerpedersen-web
+                port:
+                  number: 80
+    - host: www.tylerpedersen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tylerpedersen-web
+                port:
+                  number: 80
