@@ -22,12 +22,12 @@ function App() {
           <img
             className="profile-photo"
             src={profileImage}
-            alt="TRP profile"
+            alt="Tyler Pedersen profile"
             loading="lazy"
           />
           <div>
             <p className="eyebrow">Salt Lake City, Utah</p>
-            <h1>Hi, I&apos;m TRP</h1>
+            <h1>Hi, I&apos;m Tyler!</h1>
             <p className="lead">
               Full-stack web developer engineering production software in banking.
               I focus on reliable delivery, modern cloud infrastructure, and
