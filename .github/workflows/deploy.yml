@@ -69,6 +69,7 @@ jobs:
       CLUSTER_NODE_COUNT: "2"
       K8S_NAMESPACE: web
       DEPLOYMENT_NAME: tylerpedersen-web
+      DOCR_PULL_SECRET: registry-tylerpedersen
 
     permissions:
       contents: read
@@ -109,6 +110,11 @@ jobs:
           kubectl create namespace "${K8S_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
           doctl registry kubernetes-manifest --namespace "${K8S_NAMESPACE}" | kubectl apply -f -
 
+          # Verify pull secret is present and attach it to default service account.
+          kubectl -n "${K8S_NAMESPACE}" get secret "${DOCR_PULL_SECRET}" >/dev/null
+          kubectl -n "${K8S_NAMESPACE}" patch serviceaccount default --type merge \
+            -p "{\"imagePullSecrets\":[{\"name\":\"${DOCR_PULL_SECRET}\"}]}"
+
       - name: Ensure ingress-nginx and cert-manager
         run: |
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -131,6 +137,10 @@ jobs:
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/cluster-issuer.yaml
           kubectl apply -f k8s/ingress.yaml
+
+          # Enforce pull secret on deployment template so new ReplicaSets always use auth.
+          kubectl -n "${K8S_NAMESPACE}" patch deployment "${DEPLOYMENT_NAME}" --type strategic \
+            -p "{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"${DOCR_PULL_SECRET}\"}]}}}}"
 
       - name: Deploy image to Kubernetes
         run: |
