@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tylerpedersen-web
+  namespace: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tylerpedersen-web
+  template:
+    metadata:
+      labels:
+        app: tylerpedersen-web
+    spec:
+      containers:
+        - name: web
+          image: registry.digitalocean.com/tylerpedersen/tylerpedersen:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
