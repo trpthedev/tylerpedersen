@@ -1,0 +1,55 @@
+name: deploy
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+  build-image:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    env:
+      REGISTRY: registry.digitalocean.com
+      DOCR_REGISTRY_NAME: tylerpedersen
+      IMAGE_NAME: tylerpedersen
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Ensure DigitalOcean Container Registry exists
+        run: |
+          if doctl registry get "${DOCR_REGISTRY_NAME}" >/dev/null 2>&1; then
+            echo "Registry ${DOCR_REGISTRY_NAME} already exists"
+          else
+            echo "Creating registry ${DOCR_REGISTRY_NAME}"
+            doctl registry create "${DOCR_REGISTRY_NAME}" --subscription-tier starter
+          fi
+
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 1200
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:latest
