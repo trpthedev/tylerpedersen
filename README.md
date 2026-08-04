@@ -1,75 +1,75 @@
-# React + TypeScript + Vite
+# TylerPedersen.com Platform Build
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Production-focused React platform and infrastructure build featuring automated container delivery, Kubernetes deployment, and cloud provisioning on DigitalOcean.
 
-Currently, two official plugins are available:
+## Resume Summary
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Designed and implemented a full deployment pipeline for a Vite + React application with a strong DevOps focus. Built an end-to-end GitHub Actions workflow that handles container build, private registry publishing, Kubernetes rollout orchestration, and deployment diagnostics. Provisioned DigitalOcean infrastructure with Terraform and delivered a cluster-ready application stack including ingress and TLS automation.
 
-## React Compiler
+## Key Achievements
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Built CI/CD automation that deploys on pull request merge to main.
+- Containerized the frontend app with a multi-stage Docker build and NGINX runtime image.
+- Published versioned and latest image tags to DigitalOcean Container Registry.
+- Implemented Kubernetes deployment automation with rollout status monitoring and failure diagnostics.
+- Integrated ingress-nginx and cert-manager for HTTPS termination and certificate management.
+- Added private registry pull-secret wiring for Kubernetes pods using DigitalOcean registry credentials.
 
-## Expanding the ESLint configuration
+## Technical Highlights
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Application Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- React 19
+- TypeScript 6
+- Vite 8
+- NGINX container runtime
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Cloud and Infrastructure
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- DigitalOcean Container Registry (private image hosting)
+- DigitalOcean Kubernetes (DOKS) deployment target
+- Terraform for DigitalOcean infrastructure resources in infra
 
-```
+### CI/CD and Delivery
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- GitHub Actions workflow in .github/workflows/deploy.yml
+- Merge-triggered pipeline:
+  - Build and push container image
+  - Ensure registry exists
+  - Ensure Kubernetes cluster exists
+  - Bootstrap required cluster components
+  - Apply manifests and roll forward to commit SHA image
+- Rollout diagnostics included for rapid failure triage:
+  - Deployment, ReplicaSet, and Pod snapshots
+  - Events and describe output for root-cause analysis
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Kubernetes Deployment Architecture
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Resources in k8s include:
 
-```
+- Namespace for app isolation
+- Deployment with 2 replicas
+- ClusterIP service
+- Ingress resource with host rules for:
+  - tylerpedersen.com
+  - www.tylerpedersen.com
+- ClusterIssuer for Let's Encrypt certificate requests
+
+## Security and Operational Practices
+
+- Uses GitHub Actions secret for DigitalOcean access token.
+- Keeps registry private and requires authenticated pulls.
+- Configures imagePullSecrets for Kubernetes workloads pulling private images.
+- Includes infrastructure and rollout logs for troubleshooting without direct cluster access.
+
+## Repository Areas
+
+- src: React application code
+- Dockerfile: production image build
+- .github/workflows/deploy.yml: CI/CD pipeline
+- infra: Terraform configuration for DigitalOcean resources
+- k8s: Kubernetes manifests for runtime deployment
+
+## Outcome
+
+Delivered a deployable cloud application platform with automated infrastructure-aware delivery, private container distribution, and Kubernetes-based production rollout capabilities.
