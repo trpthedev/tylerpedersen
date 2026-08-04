@@ -53,3 +53,87 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:latest
+
+  deploy-k8s:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    needs: build-image
+
+    env:
+      REGISTRY: registry.digitalocean.com
+      DOCR_REGISTRY_NAME: tylerpedersen
+      IMAGE_NAME: tylerpedersen
+      CLUSTER_NAME: tylerpedersen
+      CLUSTER_REGION: nyc1
+      CLUSTER_NODE_SIZE: s-1vcpu-2gb
+      CLUSTER_NODE_COUNT: "2"
+      K8S_NAMESPACE: web
+      DEPLOYMENT_NAME: tylerpedersen-web
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Ensure Kubernetes cluster exists
+        run: |
+          if doctl kubernetes cluster get "${CLUSTER_NAME}" >/dev/null 2>&1; then
+            echo "Cluster ${CLUSTER_NAME} already exists"
+          else
+            echo "Creating cluster ${CLUSTER_NAME}"
+            doctl kubernetes cluster create "${CLUSTER_NAME}" \
+              --region "${CLUSTER_REGION}" \
+              --size "${CLUSTER_NODE_SIZE}" \
+              --count "${CLUSTER_NODE_COUNT}" \
+              --wait
+          fi
+
+      - name: Configure kubeconfig
+        run: doctl kubernetes cluster kubeconfig save "${CLUSTER_NAME}"
+
+      - name: Ensure namespace and DOCR pull secret
+        run: |
+          kubectl create namespace "${K8S_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+          doctl registry kubernetes-manifest --namespace "${K8S_NAMESPACE}" | kubectl apply -f -
+
+      - name: Ensure ingress-nginx and cert-manager
+        run: |
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+
+          kubectl create namespace ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
+          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx
+
+          kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+          helm upgrade --install cert-manager jetstack/cert-manager \
+            --namespace cert-manager \
+            --set crds.enabled=true
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/cluster-issuer.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      - name: Deploy image to Kubernetes
+        run: |
+          kubectl -n "${K8S_NAMESPACE}" set image deployment/"${DEPLOYMENT_NAME}" \
+            web="${REGISTRY}/${DOCR_REGISTRY_NAME}/${IMAGE_NAME}:${GITHUB_SHA}"
+          kubectl -n "${K8S_NAMESPACE}" rollout status deployment/"${DEPLOYMENT_NAME}" --timeout=300s
