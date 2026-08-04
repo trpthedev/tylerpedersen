@@ -1,4 +1,4 @@
-# TylerPedersen.com Platform Build
+# tylerpedersen.com
 
 Production-focused React platform and infrastructure build featuring automated container delivery, Kubernetes deployment, and cloud provisioning on DigitalOcean.
 
