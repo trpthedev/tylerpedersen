@@ -49,7 +49,7 @@ function App() {
           <h2>What I Do</h2>
           <ul className="summary-list">
             <li>
-              Build production frontend and backend systems with React,
+              Build fullstack systems with React,
               TypeScript, Express, and PostgreSQL.
             </li>
             <li>
