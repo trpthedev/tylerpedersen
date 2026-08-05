@@ -1,0 +1,73 @@
+name: infra-values
+
+# One-off helper. Prints the values needed by infra/*/terraform.tfvars.
+# Actions > infra-values > Run workflow. Read the job summary, copy the values
+# into the tfvars, then delete this file.
+#
+# Read-only: no applies, no cluster changes.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  values:
+    runs-on: ubuntu-latest
+
+    env:
+      CLUSTER_NAME: tylerpedersen
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Configure kubeconfig
+        run: doctl kubernetes cluster kubeconfig save "${CLUSTER_NAME}"
+
+      - name: Raw cluster and release info
+        run: |
+          echo "=== cluster ==="
+          doctl kubernetes cluster get "${CLUSTER_NAME}" --format ID,Name,Region,Version
+          echo
+          echo "=== node pools ==="
+          doctl kubernetes cluster node-pool list "${CLUSTER_NAME}" --format Name,Size,Count
+          echo
+          echo "=== helm releases ==="
+          helm list -A
+
+      - name: Write tfvars to job summary
+        run: |
+          CLUSTER_ID=$(doctl kubernetes cluster get "${CLUSTER_NAME}" --format ID --no-header)
+          CLUSTER_VERSION=$(doctl kubernetes cluster get "${CLUSTER_NAME}" --format Version --no-header)
+          POOL_NAME=$(doctl kubernetes cluster node-pool list "${CLUSTER_NAME}" --format Name --no-header | head -n 1)
+
+          # helm's CHART column is "<chart-name>-<version>"; strip the name prefix.
+          INGRESS_CHART=$(helm list -n ingress-nginx -o json | jq -r '.[0].chart // ""')
+          CERT_CHART=$(helm list -n cert-manager -o json | jq -r '.[0].chart // ""')
+          INGRESS_VERSION=${INGRESS_CHART#ingress-nginx-}
+          CERT_VERSION=${CERT_CHART#cert-manager-}
+
+          {
+            echo "## infra/platform/terraform.tfvars"
+            echo '```hcl'
+            echo "cluster_id      = \"${CLUSTER_ID}\""
+            echo "cluster_version = \"${CLUSTER_VERSION}\""
+            echo "node_pool_name  = \"${POOL_NAME}\""
+            echo '```'
+            echo
+            echo "## infra/addons/terraform.tfvars"
+            echo '```hcl'
+            echo "ingress_nginx_version = \"${INGRESS_VERSION}\""
+            echo "cert_manager_version  = \"${CERT_VERSION}\""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
