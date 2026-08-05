@@ -17,6 +17,15 @@ spec:
     - host: tylerpedersen.com
       http:
         paths:
+          # Longest prefix wins, so /api reaches the api service and everything
+          # else falls through to the static site.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: tylerpedersen-api
+                port:
+                  number: 80
           - path: /
             pathType: Prefix
             backend:
@@ -27,6 +36,15 @@ spec:
     - host: www.tylerpedersen.com
       http:
         paths:
+          # Longest prefix wins, so /api reaches the api service and everything
+          # else falls through to the static site.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: tylerpedersen-api
+                port:
+                  number: 80
           - path: /
             pathType: Prefix
             backend:

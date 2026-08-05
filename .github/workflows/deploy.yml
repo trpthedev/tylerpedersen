@@ -26,6 +26,7 @@ jobs:
       REGISTRY: registry.digitalocean.com
       DOCR_REGISTRY_NAME: tylerpedersen
       IMAGE_NAME: tylerpedersen
+      API_IMAGE_NAME: tylerpedersen-api
 
     permissions:
       contents: read
@@ -47,7 +48,7 @@ jobs:
       - name: Log in to DigitalOcean Container Registry
         run: doctl registry login --expiry-seconds 1200
 
-      - name: Build and push Docker image
+      - name: Build and push web image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -56,6 +57,16 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha || github.sha }}
             ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Build and push api image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.API_IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha || github.sha }}
+            ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.API_IMAGE_NAME }}:latest
 
   deploy-k8s:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
@@ -66,9 +77,11 @@ jobs:
       REGISTRY: registry.digitalocean.com
       DOCR_REGISTRY_NAME: tylerpedersen
       IMAGE_NAME: tylerpedersen
+      API_IMAGE_NAME: tylerpedersen-api
       CLUSTER_NAME: tylerpedersen
       K8S_NAMESPACE: web
       DEPLOYMENT_NAME: tylerpedersen-web
+      API_DEPLOYMENT_NAME: tylerpedersen-api
 
     permissions:
       contents: read
@@ -93,21 +106,32 @@ jobs:
       - name: Apply Kubernetes manifests
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          API_IMAGE: ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.API_IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/api-service.yaml
           kubectl apply -f k8s/cluster-issuer.yaml
           kubectl apply -f k8s/ingress.yaml
 
-          # Deployment carries the image tag directly, so apply is the rollout.
+          # Deployments carry the image tag directly, so apply is the rollout.
           envsubst '${IMAGE}' < k8s/deployment.yaml | kubectl apply -f -
+          envsubst '${API_IMAGE}' < k8s/api-deployment.yaml | kubectl apply -f -
 
       - name: Wait for rollout
         run: |
-          if ! kubectl -n "${K8S_NAMESPACE}" rollout status deployment/"${DEPLOYMENT_NAME}" --timeout=300s; then
-            echo "Rollout failed. Collecting diagnostics..."
+          rollout() {
+            local name="$1"
+            if kubectl -n "${K8S_NAMESPACE}" rollout status deployment/"${name}" --timeout=300s; then
+              return 0
+            fi
+
+            echo "Rollout failed for ${name}. Collecting diagnostics..."
             kubectl -n "${K8S_NAMESPACE}" get deploy,rs,pods -o wide || true
-            kubectl -n "${K8S_NAMESPACE}" describe deployment "${DEPLOYMENT_NAME}" || true
+            kubectl -n "${K8S_NAMESPACE}" describe deployment "${name}" || true
             kubectl -n "${K8S_NAMESPACE}" get events --sort-by=.lastTimestamp | tail -n 100 || true
-            kubectl -n "${K8S_NAMESPACE}" describe pods -l app="${DEPLOYMENT_NAME}" || true
-            exit 1
-          fi
+            kubectl -n "${K8S_NAMESPACE}" describe pods -l app="${name}" || true
+            return 1
+          }
+
+          rollout "${DEPLOYMENT_NAME}"
+          rollout "${API_DEPLOYMENT_NAME}"

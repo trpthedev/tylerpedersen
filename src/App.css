@@ -143,6 +143,24 @@ footer p {
   font-size: 0.86rem;
 }
 
+.api-status {
+  margin-top: 6px;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.api-status--checking {
+  color: var(--color-slate);
+}
+
+.api-status--success {
+  color: #15803d;
+}
+
+.api-status--failure {
+  color: #b91c1c;
+}
+
 @media (max-width: 840px) {
   .content {
     padding-top: 30px;
