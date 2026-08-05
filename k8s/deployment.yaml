@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: web
-          image: registry.digitalocean.com/tylerpedersen/tylerpedersen:latest
-          imagePullPolicy: Always
+          image: ${IMAGE}
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           resources:
