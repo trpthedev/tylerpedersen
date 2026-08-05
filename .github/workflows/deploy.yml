@@ -51,8 +51,6 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           tags: |
             ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha }}
             ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:latest

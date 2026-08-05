@@ -1,7 +1,10 @@
 .terraform/
-.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
-*.tfvars
-!example.tfvars
+tfplan
 crash.log
+
+# terraform.tfvars IS committed — it holds only non-secret identifiers.
+# The DigitalOcean token comes from TF_VAR_digitalocean_token in CI.
+*.auto.tfvars
+secret*.tfvars
