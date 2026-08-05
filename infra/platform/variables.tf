@@ -16,11 +16,6 @@ variable "registry_tier" {
   default     = "starter"
 }
 
-variable "cluster_id" {
-  description = "UUID of the existing DOKS cluster, used only for the import block"
-  type        = string
-}
-
 variable "cluster_name" {
   description = "DOKS cluster name"
   type        = string

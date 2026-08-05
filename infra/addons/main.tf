@@ -58,30 +58,6 @@ provider "helm" {
   }
 }
 
-# --- Adopt what the deploy workflow installed imperatively -------------------
-
-import {
-  to = kubernetes_namespace.web
-  id = var.app_namespace
-}
-
-import {
-  to = helm_release.ingress_nginx
-  id = "ingress-nginx/ingress-nginx"
-}
-
-import {
-  to = helm_release.cert_manager
-  id = "cert-manager/cert-manager"
-}
-
-# The old deploy workflow already created this via `doctl registry
-# kubernetes-manifest`. Without the import, apply fails as "already exists".
-import {
-  to = kubernetes_secret.docr
-  id = "${var.app_namespace}/${var.pull_secret_name}"
-}
-
 # --- Resources ---------------------------------------------------------------
 
 resource "kubernetes_namespace" "web" {
@@ -93,12 +69,9 @@ resource "kubernetes_namespace" "web" {
 # Version is pinned deliberately. An unpinned upgrade can recreate the
 # LoadBalancer Service, which issues a new IP and breaks DNS at Namecheap.
 resource "helm_release" "ingress_nginx" {
-  name = "ingress-nginx"
-
-  # Namespace already exists; create_namespace = true would diff on import and
-  # force a helm upgrade, which can recreate the LoadBalancer and change its IP.
+  name             = "ingress-nginx"
   namespace        = "ingress-nginx"
-  create_namespace = false
+  create_namespace = true
 
   repository = "https://kubernetes.github.io/ingress-nginx"
   chart      = "ingress-nginx"
@@ -108,7 +81,7 @@ resource "helm_release" "ingress_nginx" {
 resource "helm_release" "cert_manager" {
   name             = "cert-manager"
   namespace        = "cert-manager"
-  create_namespace = false
+  create_namespace = true
 
   repository = "https://charts.jetstack.io"
   chart      = "cert-manager"
