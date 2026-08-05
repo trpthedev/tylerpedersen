@@ -1,7 +1,24 @@
+import { useEffect, useState } from 'react'
 import './App.css'
 import profileImage from './assets/profile.jpg'
 
+type HealthState = 'checking' | 'success' | 'failure'
+
 function App() {
+  const [health, setHealth] = useState<HealthState>('checking')
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    fetch('/api/health', { signal: controller.signal })
+      .then((res) => setHealth(res.ok ? 'success' : 'failure'))
+      .catch(() => {
+        if (!controller.signal.aborted) setHealth('failure')
+      })
+
+    return () => controller.abort()
+  }, [])
+
   const techStack = [
     'React',
     'TypeScript',
@@ -110,6 +127,9 @@ function App() {
       </main>
       <footer>
         <p>© 2026 TRP · Salt Lake City, Utah</p>
+        <p className={`api-status api-status--${health}`}>
+          API health: {health === 'checking' ? 'checking…' : health}
+        </p>
       </footer>
     </div>
   )

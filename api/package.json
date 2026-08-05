@@ -1,0 +1,19 @@
+{
+  "name": "tylerpedersen-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput & node --watch dist/server.js",
+    "build": "tsc -b",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.2"
+  }
+}
