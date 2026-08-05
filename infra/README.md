@@ -1,54 +1,74 @@
-# infra
+# tylerpedersen.com
 
-Terraform for the long-lived DigitalOcean resources. Everything here predates any
-single commit; per-commit rollout stays in `.github/workflows/deploy.yml`.
+Production-focused React platform and infrastructure build featuring automated container delivery, Kubernetes deployment, and cloud provisioning on DigitalOcean.
 
-## Split
+## Summary
 
-| State | Owns |
-| --- | --- |
-| `platform/` | DOCR registry, DOKS cluster + node pool |
-| `addons/` | `web` namespace, DOCR pull secret, ingress-nginx, cert-manager |
+Designed and implemented a full deployment pipeline for a Vite + React application with a strong DevOps focus. Built an end-to-end GitHub Actions workflow that handles container build, private registry publishing, Kubernetes rollout orchestration, and deployment diagnostics. Delivered a cluster-ready application stack including ingress and TLS automation.
 
-Two states because the `kubernetes` and `helm` providers need cluster credentials
-at configure time. Creating the cluster in the same apply that configures them
-fails on a cold plan. Apply `platform` first, then `addons`; destroy in reverse.
+## Key Achievements
 
-DNS is **not** managed here — records live at Namecheap and stay manual.
+- Built CI/CD automation that deploys on pull request merge to main.
+- Containerized the frontend app with a multi-stage Docker build and NGINX runtime image.
+- Published versioned and latest image tags to DigitalOcean Container Registry.
+- Implemented Kubernetes deployment automation with rollout status monitoring and failure diagnostics.
+- Integrated ingress-nginx and cert-manager for HTTPS termination and certificate management.
+- Added private registry pull-secret wiring for Kubernetes pods using DigitalOcean registry credentials.
 
-The cert-manager `ClusterIssuer` also stays out, applied from `k8s/cluster-issuer.yaml`.
-`kubernetes_manifest` requires the CRD to exist at plan time, which breaks cold planning.
+## Technical Highlights
 
-## Running it
+### Application Stack
 
-Never from a laptop. Everything goes through `.github/workflows/infra.yml`:
+- React 19
+- TypeScript 6
+- Vite 8
+- NGINX container runtime
 
-- **Plan** runs automatically on any PR touching `infra/**`.
-- **Apply / destroy** are manual: Actions > infra > Run workflow, pick the
-  directory and the action. Destroy additionally requires typing `DESTROY` into
-  the confirm field.
+### Cloud and Infrastructure
 
-The `infra` GitHub environment gates applies and destroys.
+- DigitalOcean Container Registry (private image hosting)
+- DigitalOcean Kubernetes (DOKS) deployment target
+- GitHub Actions-driven infrastructure bootstrap for registry and cluster setup
 
-## Backend
+### CI/CD and Delivery
 
-State lives in a DigitalOcean Spaces bucket (`tylerpedersen-tfstate`, nyc3), which
-is S3-compatible. Spaces keys are stored as the `SPACES_ACCESS_KEY_ID` and
-`SPACES_SECRET_ACCESS_KEY` repository secrets.
+- GitHub Actions workflow in .github/workflows/deploy.yml
+- Merge-triggered pipeline:
+  - Build and push container image
+  - Ensure registry exists
+  - Ensure Kubernetes cluster exists
+  - Bootstrap required cluster components
+  - Apply manifests and roll forward to commit SHA image
+- Rollout diagnostics included for rapid failure triage:
+  - Deployment, ReplicaSet, and Pod snapshots
+  - Events and describe output for root-cause analysis
 
-Spaces has no state locking, so never run two applies concurrently.
+## Kubernetes Deployment Architecture
 
-## Rebuilding from scratch
+Resources in k8s include:
 
-After a destroy, a fresh apply recreates everything — but it is a rebuild, not a
-restore:
+- Namespace for app isolation
+- Deployment with 2 replicas
+- ClusterIP service
+- Ingress resource with host rules for:
+  - tylerpedersen.com
+  - www.tylerpedersen.com
+- ClusterIssuer for Let's Encrypt certificate requests
 
-- The ingress LoadBalancer gets a **new IP**. Update the A records at Namecheap by
-  hand or the site stays down.
-- The registry comes back empty. Pods cannot start until `deploy.yml` pushes an
-  image.
-- TLS certificates are reissued. Let's Encrypt rate-limits roughly 5 per domain
-  per week, so repeated cycles will lock you out.
+## Security and Operational Practices
 
-The original resources were adopted with `import` blocks, which have since been
-removed. A fresh apply creates rather than adopts.
+- Uses GitHub Actions secret for DigitalOcean access token.
+- Keeps registry private and requires authenticated pulls.
+- Configures imagePullSecrets for Kubernetes workloads pulling private images.
+- Includes infrastructure and rollout logs for troubleshooting without direct cluster access.
+
+## Repository Areas
+
+- src: React application code
+- Dockerfile: production image build
+- .github/workflows/deploy.yml: CI/CD pipeline
+- k8s: Kubernetes manifests for runtime deployment
+
+## Outcome
+
+Delivered a deployable cloud application platform with automated infrastructure-aware delivery, private container distribution, and Kubernetes-based production rollout capabilities.
