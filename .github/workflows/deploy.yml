@@ -7,6 +7,14 @@ on:
     types:
       - closed
 
+# Infrastructure (registry, cluster, ingress-nginx, cert-manager, namespace,
+# pull secret) is owned by Terraform in infra/. This workflow only builds the
+# image and rolls the app forward.
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
 jobs:
   build-image:
     if: github.event.pull_request.merged == true
@@ -23,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -31,15 +41,6 @@ jobs:
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Ensure DigitalOcean Container Registry exists
-        run: |
-          if doctl registry get "${DOCR_REGISTRY_NAME}" >/dev/null 2>&1; then
-            echo "Registry ${DOCR_REGISTRY_NAME} already exists"
-          else
-            echo "Creating registry ${DOCR_REGISTRY_NAME}"
-            doctl registry create "${DOCR_REGISTRY_NAME}" --subscription-tier starter
-          fi
 
       - name: Log in to DigitalOcean Container Registry
         run: doctl registry login --expiry-seconds 1200
@@ -50,8 +51,10 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
-            ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha }}
             ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:latest
 
   deploy-k8s:
@@ -64,12 +67,8 @@ jobs:
       DOCR_REGISTRY_NAME: tylerpedersen
       IMAGE_NAME: tylerpedersen
       CLUSTER_NAME: tylerpedersen
-      CLUSTER_REGION: nyc1
-      CLUSTER_NODE_SIZE: s-1vcpu-2gb
-      CLUSTER_NODE_COUNT: "2"
       K8S_NAMESPACE: web
       DEPLOYMENT_NAME: tylerpedersen-web
-      DOCR_PULL_SECRET: registry-tylerpedersen
 
     permissions:
       contents: read
@@ -77,6 +76,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -86,69 +87,23 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-
-      - name: Ensure Kubernetes cluster exists
-        run: |
-          if doctl kubernetes cluster get "${CLUSTER_NAME}" >/dev/null 2>&1; then
-            echo "Cluster ${CLUSTER_NAME} already exists"
-          else
-            echo "Creating cluster ${CLUSTER_NAME}"
-            doctl kubernetes cluster create "${CLUSTER_NAME}" \
-              --region "${CLUSTER_REGION}" \
-              --size "${CLUSTER_NODE_SIZE}" \
-              --count "${CLUSTER_NODE_COUNT}" \
-              --wait
-          fi
-
       - name: Configure kubeconfig
         run: doctl kubernetes cluster kubeconfig save "${CLUSTER_NAME}"
 
-      - name: Ensure namespace and DOCR pull secret
-        run: |
-          kubectl create namespace "${K8S_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
-          doctl registry kubernetes-manifest --namespace "${K8S_NAMESPACE}" | kubectl apply -f -
-
-          # Verify pull secret is present and attach it to default service account.
-          kubectl -n "${K8S_NAMESPACE}" get secret "${DOCR_PULL_SECRET}" >/dev/null
-          kubectl -n "${K8S_NAMESPACE}" patch serviceaccount default --type merge \
-            -p "{\"imagePullSecrets\":[{\"name\":\"${DOCR_PULL_SECRET}\"}]}"
-
-      - name: Ensure ingress-nginx and cert-manager
-        run: |
-          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-          helm repo add jetstack https://charts.jetstack.io
-          helm repo update
-
-          kubectl create namespace ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
-          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-            --namespace ingress-nginx
-
-          kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
-          helm upgrade --install cert-manager jetstack/cert-manager \
-            --namespace cert-manager \
-            --set crds.enabled=true
-
       - name: Apply Kubernetes manifests
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha }}
         run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/cluster-issuer.yaml
           kubectl apply -f k8s/ingress.yaml
 
-          # Enforce pull secret on deployment template so new ReplicaSets always use auth.
-          kubectl -n "${K8S_NAMESPACE}" patch deployment "${DEPLOYMENT_NAME}" --type strategic \
-            -p "{\"spec\":{\"template\":{\"spec\":{\"imagePullSecrets\":[{\"name\":\"${DOCR_PULL_SECRET}\"}]}}}}"
+          # Deployment carries the image tag directly, so apply is the rollout.
+          envsubst '${IMAGE}' < k8s/deployment.yaml | kubectl apply -f -
 
-      - name: Deploy image to Kubernetes
+      - name: Wait for rollout
         run: |
-          kubectl -n "${K8S_NAMESPACE}" set image deployment/"${DEPLOYMENT_NAME}" \
-            web="${REGISTRY}/${DOCR_REGISTRY_NAME}/${IMAGE_NAME}:${GITHUB_SHA}"
-
-          # First cluster bootstrap can be slow while nodes warm up and images pull.
-          if ! kubectl -n "${K8S_NAMESPACE}" rollout status deployment/"${DEPLOYMENT_NAME}" --timeout=900s; then
+          if ! kubectl -n "${K8S_NAMESPACE}" rollout status deployment/"${DEPLOYMENT_NAME}" --timeout=300s; then
             echo "Rollout failed. Collecting diagnostics..."
             kubectl -n "${K8S_NAMESPACE}" get deploy,rs,pods -o wide || true
             kubectl -n "${K8S_NAMESPACE}" describe deployment "${DEPLOYMENT_NAME}" || true
