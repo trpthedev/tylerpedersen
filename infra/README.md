@@ -12,46 +12,43 @@ single commit; per-commit rollout stays in `.github/workflows/deploy.yml`.
 
 Two states because the `kubernetes` and `helm` providers need cluster credentials
 at configure time. Creating the cluster in the same apply that configures them
-fails on a cold plan.
+fails on a cold plan. Apply `platform` first, then `addons`; destroy in reverse.
 
 DNS is **not** managed here — records live at Namecheap and stay manual.
 
 The cert-manager `ClusterIssuer` also stays out, applied from `k8s/cluster-issuer.yaml`.
 `kubernetes_manifest` requires the CRD to exist at plan time, which breaks cold planning.
 
-## Adopting the existing infrastructure
+## Running it
 
-The registry, cluster, and Helm releases already exist — the deploy workflow created
-them imperatively. Both states use `import` blocks to adopt them rather than create
-duplicates.
+Never from a laptop. Everything goes through `.github/workflows/infra.yml`:
 
-Fill these in first, from the live cluster:
+- **Plan** runs automatically on any PR touching `infra/**`.
+- **Apply / destroy** are manual: Actions > infra > Run workflow, pick the
+  directory and the action. Destroy additionally requires typing `DESTROY` into
+  the confirm field.
 
-```sh
-doctl kubernetes cluster get tylerpedersen   # cluster_id, cluster_version, node pool name
-helm list -A                                  # ingress_nginx_version, cert_manager_version
-```
-
-Then:
-
-```sh
-cd platform
-terraform init
-terraform plan   # MUST report "No changes"
-```
-
-**The plan is the gate.** If it wants to modify anything, the HCL does not match
-reality — fix the HCL, never apply through it. Two failure modes to watch:
-
-- Wrong `cluster_version` or `node_pool_name` -> plans a cluster **replace**.
-- Wrong chart version -> upgrades ingress-nginx, which can recreate the
-  LoadBalancer, issue a new IP, and take the site down until Namecheap is edited
-  by hand.
-
-Once `platform` plans clean, repeat for `addons`.
+The `infra` GitHub environment gates applies and destroys.
 
 ## Backend
 
-State lives in a DigitalOcean Spaces bucket (`tylerpedersen-tfstate`), which is
-S3-compatible. Create the bucket before `terraform init`, and export Spaces keys as
-`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+State lives in a DigitalOcean Spaces bucket (`tylerpedersen-tfstate`, nyc3), which
+is S3-compatible. Spaces keys are stored as the `SPACES_ACCESS_KEY_ID` and
+`SPACES_SECRET_ACCESS_KEY` repository secrets.
+
+Spaces has no state locking, so never run two applies concurrently.
+
+## Rebuilding from scratch
+
+After a destroy, a fresh apply recreates everything — but it is a rebuild, not a
+restore:
+
+- The ingress LoadBalancer gets a **new IP**. Update the A records at Namecheap by
+  hand or the site stays down.
+- The registry comes back empty. Pods cannot start until `deploy.yml` pushes an
+  image.
+- TLS certificates are reissued. Let's Encrypt rate-limits roughly 5 per domain
+  per week, so repeated cycles will lock you out.
+
+The original resources were adopted with `import` blocks, which have since been
+removed. A fresh apply creates rather than adopts.

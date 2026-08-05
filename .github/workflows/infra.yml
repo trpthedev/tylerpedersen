@@ -20,13 +20,19 @@ on:
           - platform
           - addons
       action:
-        description: "plan or apply"
+        description: "plan, apply, or destroy"
         required: true
         default: plan
         type: choice
         options:
           - plan
           - apply
+          - destroy
+      confirm_destroy:
+        description: "Type DESTROY to confirm. Ignored for plan and apply."
+        required: false
+        default: ""
+        type: string
 
 concurrency:
   group: infra-${{ github.event.inputs.directory || 'pr' }}
@@ -105,12 +111,29 @@ jobs:
           terraform_version: 1.9.8
           terraform_wrapper: false
 
+      - name: Guard destroy
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          if [ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]; then
+            echo "::error::confirm_destroy must be the literal string DESTROY"
+            exit 1
+          fi
+
       - name: Init
         run: terraform init -lock-timeout=5m
 
       - name: Plan
+        if: github.event.inputs.action != 'destroy'
         run: terraform plan -lock-timeout=5m -no-color -out=tfplan
 
       - name: Apply
         if: github.event.inputs.action == 'apply'
+        run: terraform apply -lock-timeout=5m -no-color -auto-approve tfplan
+
+      - name: Plan destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform plan -destroy -lock-timeout=5m -no-color -out=tfplan
+
+      - name: Destroy
+        if: github.event.inputs.action == 'destroy'
         run: terraform apply -lock-timeout=5m -no-color -auto-approve tfplan
