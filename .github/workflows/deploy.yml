@@ -6,6 +6,8 @@ on:
       - main
     types:
       - closed
+  # Manual redeploy, e.g. after a cluster rebuild when no PR is pending.
+  workflow_dispatch:
 
 # Infrastructure (registry, cluster, ingress-nginx, cert-manager, namespace,
 # pull secret) is owned by Terraform in infra/. This workflow only builds the
@@ -17,7 +19,7 @@ concurrency:
 
 jobs:
   build-image:
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     env:
@@ -32,7 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,11 +54,11 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha }}
+            ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha || github.sha }}
             ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:latest
 
   deploy-k8s:
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     needs: build-image
 
@@ -75,7 +77,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -90,7 +92,7 @@ jobs:
 
       - name: Apply Kubernetes manifests
         env:
-          IMAGE: ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha }}
+          IMAGE: ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/cluster-issuer.yaml
