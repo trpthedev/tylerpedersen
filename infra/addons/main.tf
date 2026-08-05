@@ -112,7 +112,7 @@ resource "helm_release" "cert_manager" {
 
 # --- DOCR pull secret --------------------------------------------------------
 
-data "digitalocean_container_registry_docker_credentials" "this" {
+resource "digitalocean_container_registry_docker_credentials" "this" {
   registry_name = var.registry_name
 }
 
@@ -125,6 +125,6 @@ resource "kubernetes_secret" "docr" {
   type = "kubernetes.io/dockerconfigjson"
 
   data = {
-    ".dockerconfigjson" = data.digitalocean_container_registry_docker_credentials.this.docker_credentials
+    ".dockerconfigjson" = digitalocean_container_registry_docker_credentials.this.docker_credentials
   }
 }
