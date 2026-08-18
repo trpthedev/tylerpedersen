@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
 import Divider from '@mui/material/Divider'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
@@ -34,23 +36,26 @@ export default function CryptoDash() {
   useEffect(() => {
     const controller = new AbortController()
 
-    fetch('/api/coins/markets?vs_currency=usd&per_page=10', {
-      signal: controller.signal,
-    })
-      .then(async (res) => {
+    async function loadCoins() {
+      try {
+        const res = await fetch('/api/coins/markets?vs_currency=usd&per_page=20', {
+          signal: controller.signal,
+        })
+
         if (!res.ok) throw new Error(`Request failed with ${res.status}`)
-        return (await res.json()) as CoinMarket[]
-      })
-      .then((data) => {
-        setCoins(data)
-        setLoading(false)
-      })
-      .catch((err: unknown) => {
+
+        setCoins((await res.json()) as CoinMarket[])
+      } catch (err: unknown) {
         // An abort is a deliberate cancel on unmount, not a failure to report.
         if (controller.signal.aborted) return
         setError(err instanceof Error ? err.message : 'Failed to load coins')
-        setLoading(false)
-      })
+      } finally {
+        // finally still runs on abort, so don't touch state after unmount.
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
+
+    void loadCoins()
 
     return () => controller.abort()
   }, [])
@@ -64,7 +69,7 @@ export default function CryptoDash() {
         </Typography>
 
         <Typography sx={{ color: 'text.secondary', fontSize: '0.9rem', mb: 1.5 }}>
-          Top 10 by market cap · prices in USD
+          Top 20 by market cap · prices in USD
         </Typography>
 
         <Divider sx={{ mb: 2.5 }} />
@@ -76,45 +81,70 @@ export default function CryptoDash() {
         )}
 
         {!loading && !error && (
-          <Stack component="ul" spacing={1.5} sx={{ m: 0, p: 0, listStyle: 'none' }}>
+          <Box
+            component="ul"
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+              gap: 2,
+              m: 0,
+              p: 0,
+              listStyle: 'none',
+            }}
+          >
             {coins.map((coin) => (
-              <Stack
-                key={coin.id}
-                component="li"
-                direction="row"
-                spacing={1.5}
-                sx={{ alignItems: 'center' }}
-              >
-                <Box
-                  component="img"
-                  src={coin.image}
-                  alt=""
-                  loading="lazy"
-                  sx={{ width: 28, height: 28, borderRadius: '50%' }}
-                />
-                <Typography sx={{ fontWeight: 600, flex: 1 }}>
-                  {coin.name}{' '}
-                  <Box component="span" sx={{ color: 'text.disabled' }}>
-                    {coin.symbol.toUpperCase()}
-                  </Box>
-                </Typography>
-                <Typography>{priceFormat.format(coin.current_price)}</Typography>
-                <Typography
-                  sx={{
-                    minWidth: '4.5rem',
-                    textAlign: 'right',
-                    fontWeight: 600,
-                    color:
-                      (coin.price_change_percentage_24h ?? 0) >= 0
-                        ? 'success.main'
-                        : 'error.main',
-                  }}
-                >
-                  {coin.price_change_percentage_24h?.toFixed(2) ?? '—'}%
-                </Typography>
-              </Stack>
+              // mt/p are reset because the theme's MuiPaper `outlined` override
+              // adds section-card spacing that a grid of cards doesn't want.
+              <Card key={coin.id} component="li" variant="outlined" sx={{ mt: 0, p: 0 }}>
+                <CardContent>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{ alignItems: 'center', mb: 1.5 }}
+                  >
+                    <Box
+                      component="img"
+                      src={coin.image}
+                      alt=""
+                      loading="lazy"
+                      sx={{ width: 36, height: 36, borderRadius: '50%' }}
+                    />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 600, lineHeight: 1.3 }} noWrap>
+                        {coin.name}
+                      </Typography>
+                      <Typography sx={{ color: 'text.disabled', fontSize: '0.78rem' }}>
+                        {coin.symbol.toUpperCase()} · #{coin.market_cap_rank ?? '—'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}
+                  >
+                    <Typography sx={{ fontSize: '1.35rem', fontWeight: 700 }}>
+                      {priceFormat.format(coin.current_price)}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        color:
+                          (coin.price_change_percentage_24h ?? 0) >= 0
+                            ? 'success.main'
+                            : 'error.main',
+                      }}
+                    >
+                      {(coin.price_change_percentage_24h ?? 0) >= 0 ? '▲' : '▼'}{' '}
+                      {Math.abs(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
+                    </Typography>
+                  </Stack>
+                </CardContent>
+              </Card>
             ))}
-          </Stack>
+          </Box>
         )}
       </Paper>
 
