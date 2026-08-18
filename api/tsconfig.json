@@ -11,7 +11,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    /* tsoa controllers use legacy parameter decorators. */
+    "experimentalDecorators": true
   },
   "include": ["src"]
 }
