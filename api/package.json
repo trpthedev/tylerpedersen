@@ -4,12 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsc --watch --preserveWatchOutput & node --watch dist/server.js",
-    "build": "tsc -b",
+    "dev": "tsoa spec-and-routes && (tsc --watch --preserveWatchOutput & node --watch --env-file-if-exists=.env dist/server.js)",
+    "build": "tsoa spec-and-routes && tsc -b",
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "tsoa": "^6.6.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

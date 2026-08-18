@@ -1,0 +1,217 @@
+{
+	"openapi": "3.0.0",
+	"components": {
+		"examples": {},
+		"headers": {},
+		"parameters": {},
+		"requestBodies": {},
+		"responses": {},
+		"schemas": {
+			"HealthResponse": {
+				"properties": {
+					"status": {
+						"type": "string"
+					},
+					"uptime": {
+						"type": "number",
+						"format": "double",
+						"description": "Seconds since the process started."
+					},
+					"timestamp": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"status",
+					"uptime",
+					"timestamp"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"CoinMarket": {
+				"description": "Subset of CoinGecko's /coins/markets entries that the dashboard needs.",
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"symbol": {
+						"type": "string"
+					},
+					"name": {
+						"type": "string"
+					},
+					"image": {
+						"type": "string"
+					},
+					"current_price": {
+						"type": "number",
+						"format": "double"
+					},
+					"market_cap": {
+						"type": "number",
+						"format": "double"
+					},
+					"market_cap_rank": {
+						"type": "number",
+						"format": "double",
+						"nullable": true
+					},
+					"total_volume": {
+						"type": "number",
+						"format": "double"
+					},
+					"price_change_percentage_24h": {
+						"type": "number",
+						"format": "double",
+						"nullable": true
+					},
+					"last_updated": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"id",
+					"symbol",
+					"name",
+					"image",
+					"current_price",
+					"market_cap",
+					"market_cap_rank",
+					"total_volume",
+					"price_change_percentage_24h",
+					"last_updated"
+				],
+				"type": "object",
+				"additionalProperties": false
+			},
+			"ErrorResponse": {
+				"properties": {
+					"message": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"message"
+				],
+				"type": "object",
+				"additionalProperties": false
+			}
+		},
+		"securitySchemes": {}
+	},
+	"info": {
+		"title": "tylerpedersen-api",
+		"version": "0.0.0",
+		"contact": {}
+	},
+	"paths": {
+		"/health": {
+			"get": {
+				"operationId": "GetHealth",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/HealthResponse"
+								}
+							}
+						}
+					}
+				},
+				"description": "Liveness/readiness probe target.",
+				"tags": [
+					"Health"
+				],
+				"security": [],
+				"parameters": []
+			}
+		},
+		"/coins/markets": {
+			"get": {
+				"operationId": "GetMarkets",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"items": {
+										"$ref": "#/components/schemas/CoinMarket"
+									},
+									"type": "array"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "CoinGecko request failed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				},
+				"description": "Market data for the top coins by market cap. Proxies CoinGecko so the API\nkey stays server-side.",
+				"tags": [
+					"Coins"
+				],
+				"security": [],
+				"parameters": [
+					{
+						"description": "Currency to price against, e.g. \"usd\".",
+						"in": "query",
+						"name": "vs_currency",
+						"required": false,
+						"schema": {
+							"default": "usd",
+							"type": "string"
+						}
+					},
+					{
+						"description": "Sort order, e.g. \"market_cap_desc\" or \"volume_desc\".",
+						"in": "query",
+						"name": "order",
+						"required": false,
+						"schema": {
+							"default": "market_cap_desc",
+							"type": "string"
+						}
+					},
+					{
+						"description": "Results per page. CoinGecko caps this at 250.",
+						"in": "query",
+						"name": "per_page",
+						"required": false,
+						"schema": {
+							"default": 20,
+							"format": "double",
+							"type": "number"
+						}
+					},
+					{
+						"description": "1-based page number.",
+						"in": "query",
+						"name": "page",
+						"required": false,
+						"schema": {
+							"default": 1,
+							"format": "double",
+							"type": "number"
+						}
+					}
+				]
+			}
+		}
+	},
+	"servers": [
+		{
+			"url": "/api"
+		}
+	]
+}

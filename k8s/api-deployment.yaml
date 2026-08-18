@@ -19,6 +19,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
+          # Runtime env for the api. Variable names match .env.example; values
+          # come from GitHub Secrets via the deploy workflow. optional: true so a
+          # missing Secret degrades the app instead of wedging the rollout.
+          envFrom:
+            - secretRef:
+                name: tylerpedersen-api-env
+                optional: true
           readinessProbe:
             httpGet:
               path: /api/health

@@ -103,6 +103,20 @@ jobs:
       - name: Configure kubeconfig
         run: doctl kubernetes cluster kubeconfig save "${CLUSTER_NAME}"
 
+      # Names here must match api/.env.example. The api reads them from
+      # process.env; k8s/api-deployment.yaml pulls the whole Secret in via
+      # envFrom. create --dry-run | apply keeps it idempotent and avoids
+      # committing a Secret manifest.
+      - name: Sync api env Secret
+        env:
+          COINGECKO_API_URL: ${{ vars.COINGECKO_API_URL }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: |
+          kubectl -n "${K8S_NAMESPACE}" create secret generic tylerpedersen-api-env \
+            --from-literal=COINGECKO_API_URL="${COINGECKO_API_URL:-https://api.coingecko.com/api/v3}" \
+            --from-literal=COINGECKO_API_KEY="${COINGECKO_API_KEY}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes manifests
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.DOCR_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.event.pull_request.merge_commit_sha || github.sha }}
@@ -116,6 +130,13 @@ jobs:
           # Deployments carry the image tag directly, so apply is the rollout.
           envsubst '${IMAGE}' < k8s/deployment.yaml | kubectl apply -f -
           envsubst '${API_IMAGE}' < k8s/api-deployment.yaml | kubectl apply -f -
+
+      # envFrom values are injected at pod start, so a Secret change alone does
+      # not restart anything. Normal deploys roll because the image tag moves,
+      # but a workflow_dispatch redeploy at an unchanged SHA would otherwise keep
+      # serving the old env after a key rotation.
+      - name: Restart api to pick up env changes
+        run: kubectl -n "${K8S_NAMESPACE}" rollout restart deployment/"${API_DEPLOYMENT_NAME}"
 
       - name: Wait for rollout
         run: |
