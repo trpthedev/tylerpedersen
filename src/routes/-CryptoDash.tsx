@@ -84,10 +84,26 @@ export default function CryptoDash() {
   return (
     <Box sx={{ width: 'min(100%, 860px)', mx: 'auto', px: 3, py: 6 }} component="main">
       <Paper variant="outlined" component="section">
-        <Typography variant="h2">
-          <RocketLaunchIcon fontSize="small" sx={{ mr: 1, verticalAlign: '-0.2em' }} />
-          Crypto Dashboard
-        </Typography>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            // The theme puts marginBottom on h2; move it to the row so the
+            // heading and button stay vertically centred against each other.
+            mb: '14px',
+          }}
+        >
+          <Typography variant="h2" sx={{ mb: 0 }}>
+            <RocketLaunchIcon fontSize="small" sx={{ mr: 1, verticalAlign: '-0.2em' }} />
+            Crypto Dashboard
+          </Typography>
+
+          <Button component={Link} to="/" sx={pillLinkSx}>
+            Back home
+          </Button>
+        </Stack>
 
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
@@ -207,14 +223,6 @@ export default function CryptoDash() {
             ))}
           </Box>
         )}
-      </Paper>
-
-      <Paper variant="outlined" component="section">
-        <Stack direction="row" spacing={1.25} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          <Button component={Link} to="/" sx={pillLinkSx}>
-            Back home
-          </Button>
-        </Stack>
       </Paper>
     </Box>
   )
