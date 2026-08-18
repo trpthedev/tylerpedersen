@@ -4,8 +4,10 @@ import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Divider from '@mui/material/Divider'
+import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
+import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { pillLinkSx } from '../theme'
@@ -32,15 +34,21 @@ export default function CryptoDash() {
   const [coins, setCoins] = useState<CoinMarket[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState<string>('')
+  const [perPage, setPerPage] = useState<number>(25)
 
   useEffect(() => {
     const controller = new AbortController()
 
     async function loadCoins() {
       try {
-        const res = await fetch('/api/coins/markets?vs_currency=usd&per_page=20', {
-          signal: controller.signal,
-        })
+        setLoading(true)
+        setError(null)
+
+        const res = await fetch(
+          `/api/coins/markets?vs_currency=usd&per_page=${perPage}`,
+          { signal: controller.signal },
+        )
 
         if (!res.ok) throw new Error(`Request failed with ${res.status}`)
 
@@ -58,7 +66,20 @@ export default function CryptoDash() {
     void loadCoins()
 
     return () => controller.abort()
-  }, [])
+    // Changing perPage re-runs the effect; cleanup aborts the previous request
+    // so a slow earlier response can't overwrite a newer one.
+  }, [perPage])
+
+  // Derived during render rather than held in state — it's a pure function of
+  // coins + query, so an effect would only add a second render pass.
+  const needle = query.trim().toLowerCase()
+  const visible = needle
+    ? coins.filter(
+        (coin) =>
+          coin.name.toLowerCase().includes(needle) ||
+          coin.symbol.toLowerCase().includes(needle),
+      )
+    : coins
 
   return (
     <Box sx={{ width: 'min(100%, 860px)', mx: 'auto', px: 3, py: 6 }} component="main">
@@ -68,9 +89,43 @@ export default function CryptoDash() {
           Crypto Dashboard
         </Typography>
 
-        <Typography sx={{ color: 'text.secondary', fontSize: '0.9rem', mb: 1.5 }}>
-          Top 20 by market cap · prices in USD
-        </Typography>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          sx={{
+            alignItems: { sm: 'flex-start' },
+            justifyContent: 'space-between',
+            mb: 1.5,
+          }}
+        >
+          <Typography sx={{ color: 'text.secondary', fontSize: '0.9rem' }}>
+            Top {perPage} by market cap · prices in USD
+          </Typography>
+
+          <Stack spacing={1.5} sx={{ width: { xs: '100%', sm: 220 } }}>
+            <TextField
+              size="small"
+              type="search"
+              label="Filter coins"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+
+            <TextField
+              select
+              size="small"
+              label="Results"
+              value={perPage}
+              onChange={(event) => setPerPage(Number(event.target.value))}
+            >
+              {[25, 50, 75, 100].map((count) => (
+                <MenuItem key={count} value={count}>
+                  {count}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </Stack>
 
         <Divider sx={{ mb: 2.5 }} />
 
@@ -80,7 +135,13 @@ export default function CryptoDash() {
           <Typography sx={{ color: 'error.main' }}>Could not load coins: {error}</Typography>
         )}
 
-        {!loading && !error && (
+        {!loading && !error && visible.length === 0 && (
+          <Typography sx={{ color: 'text.secondary' }}>
+            No coins match “{query}”.
+          </Typography>
+        )}
+
+        {!loading && !error && visible.length > 0 && (
           <Box
             component="ul"
             sx={{
@@ -92,7 +153,7 @@ export default function CryptoDash() {
               listStyle: 'none',
             }}
           >
-            {coins.map((coin) => (
+            {visible.map((coin) => (
               // mt/p are reset because the theme's MuiPaper `outlined` override
               // adds section-card spacing that a grid of cards doesn't want.
               <Card key={coin.id} component="li" variant="outlined" sx={{ mt: 0, p: 0 }}>
